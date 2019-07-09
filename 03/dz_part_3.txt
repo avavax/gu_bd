@@ -1,0 +1,50 @@
+# База данных «Страны и города мира»:
+
+# 1. Сделать запрос, в котором мы выберем все данные о городе – регион, страна.
+SELECT * FROM `sity` WHERE `name` = 'Порхов';
+
+# вывести название страны для города
+SELECT `country`.`name` FROM `country` 
+LEFT JOIN `sity` ON `country`.`id` = `sity`.`country_id` 
+WHERE `sity`.`name` = 'Порхов';
+
+# вывести название региона для города
+SELECT `region`.`name` FROM `region` 
+LEFT JOIN `sity` ON `region`.`id` = `sity`.`region_id` 
+WHERE `sity`.`name` = 'Порхов';
+
+# 2. Выбрать все города из Московской области.
+
+# Если известен id области
+SELECT `name` FROM `sity` WHERE `region_id` = '3';
+
+# По названию региона
+SELECT `sity`.`name` FROM `sity` 
+LEFT JOIN `region` ON `region`.`id` = `sity`.`region_id` 
+WHERE `region`.`name` = 'Московская';
+
+# База данных «Сотрудники»:
+
+# 1. Выбрать среднюю зарплату по отделам.
+SELECT AVG(`salary`), `depart`.`name` FROM `shtat` 
+LEFT JOIN `depart` ON `shtat`.`dept` = `depart`.`id`
+GROUP BY `depart`.`name`;
+
+# 2. Выбрать максимальную зарплату у сотрудника.
+SELECT MAX(`salary`) FROM `shtat`;
+
+# Если нужно получить другие данные об этой же строке, можно так
+SELECT `salary`, `name` FROM `shtat` ORDER BY `salary` DESC LIMIT 1;
+
+# 3. Удалить одного сотрудника, у которого максимальная зарплата.
+DELETE FROM `shtat` ORDER BY `salary` DESC LIMIT 1;
+
+# 4. Посчитать количество сотрудников во всех отделах.
+SELECT COUNT(*), `depart`.`name` FROM `shtat` 
+LEFT JOIN `depart` ON `shtat`.`dept` = `depart`.`id`
+GROUP BY `depart`.`name`;
+
+# 5. Найти количество сотрудников в отделах и посмотреть, сколько всего денег получает отдел.
+SELECT COUNT(*), SUM(`shtat` .`salary`), `depart`.`name` FROM `shtat` 
+LEFT JOIN `depart` ON `shtat`.`dept` = `depart`.`id`
+GROUP BY `depart`.`name`;
