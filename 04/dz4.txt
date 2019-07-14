@@ -1,0 +1,45 @@
+# 1. Создать VIEW на основе запросов, которые вы сделали в ДЗ к уроку 3.
+
+# Для базы "Города" - города и страны где они расположены
+CREATE VIEW `emp1` AS 
+SELECT `sity`.`name` AS `Город`, `country`.`name` AS `Страна` FROM `country` 
+LEFT JOIN `sity` ON `country`.`id` = `sity`.`country_id`; 
+
+# Для базы "Сотрудники" - отделы и информация по отделам 
+CREATE VIEW `emp3` AS SELECT `depart`.`name` AS `Название отдела`, AVG(`salary`) AS `Средняя зарплата`, COUNT(*) AS `Количество сотрудников` 
+FROM `depart` RIGHT JOIN `shtat` ON `depart`.`id` = `shtat`.`dept`
+GROUP BY `depart`.`name`;
+
+# 2. Создать функцию, которая найдет менеджера по имени и фамилии.
+
+delimiter $$
+
+CREATE PROCEDURE `proc2` (first_name VARCHAR(25), last_name VARCHAR(30))
+BEGIN
+SELECT CONCAT(`shtat`.`name`, ' ',`shtat`.`lastname`) AS `ФИО`,
+`shtat`.`position` AS `Должность`, `shtat`.`salary`, `depart`.`name` AS `Отдел` 
+FROM `shtat` LEFT JOIN `depart` ON `shtat`.`dept` = `depart`.`id`
+WHERE `shtat`.`name` = first_name AND `shtat`.`lastname` = last_name;
+END$$
+
+delimiter ;
+
+# 3. Создать триггер, который при добавлении нового сотрудника будет выплачивать ему вступительный бонус, занося запись об этом в таблицу salary
+
+# Создаём таблицу
+CREATE TABLE `lesson3`.`salary` 
+(`id` INT(11) NOT NULL AUTO_INCREMENT, 
+`user_id` INT(11) NOT NULL, 
+`bonus` INT(11) NOT NULL, PRIMARY KEY (`id`)) 
+ENGINE = InnoDB;
+
+# Связываем по внешнему ключу
+ALTER TABLE `salary` ADD INDEX(`user_id`);
+ALTER TABLE `salary` ADD FOREIGN KEY (`user_id`) 
+REFERENCES `shtat`(`id`) ON DELETE RESTRICT ON UPDATE RESTRICT;
+
+# Триггер
+CREATE TRIGGER `trig3`
+AFTER INSERT ON `shtat`
+FOR EACH ROW
+INSERT INTO `salary` (`user_id`, `bonus`) VALUES (NEW.id, NEW.salary * 2);
