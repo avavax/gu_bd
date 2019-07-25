@@ -1,0 +1,122 @@
+# Входим в БД
+mysql -u root -p
+
+# 1. Создать нового пользователя и задать ему права доступа на базу данных «Страны и города мира».
+
+CREATE USER 'small'@'localhost' IDENTIFIED BY '12345';
+GRANT SELECT ON `countries`.* TO 'small'@'localhost';
+FLUSH PRIVILEGES; 
+SHOW GRANTS FOR `small`@`localhost`;
+
++--------------------------------------------------------------------------------------------------------------+
+| Grants for small@localhost                                                                                   |
++--------------------------------------------------------------------------------------------------------------+
+| GRANT USAGE ON *.* TO 'small'@'localhost' IDENTIFIED BY PASSWORD '*00A51F3F48415C7D4E8908980D443C29C69B60C9' |
+| GRANT SELECT ON `countries`.* TO 'small'@'localhost'                                                         |
++--------------------------------------------------------------------------------------------------------------+
+2 rows in set (0.000 sec)
+
+# 2. Сделать резервную копию базы, удалить базу и пересоздать из бекапа.
+
+mysqldump -u root -p countries --routines > f:/openserver/dump.sql
+
+mysql -u root -p
+DROP DATABASE `countries`;
+
+CREATE SCHEMA `countries`;
+mysqldump -u root -p CREATE `countries`;
+mysql -u root -p countries < f:/openserver/dump.sql
+
+#
+# 3 Социальная сеть
+#
+
+# Создаём заготовку
+CREATE SCHEMA `social`;
+
+# Таблица пользователи
+CREATE TABLE `users` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `name` varchar(128) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
+
+# Таблица лайки юзеров
+CREATE TABLE `user_likes` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `from` int(11) NOT NULL,
+  `to` int (11) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
+
+# Таблица фото
+CREATE TABLE `photos` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `name` varchar(128) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
+
+# Таблица лайки фото
+CREATE TABLE `photo_likes` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `from` int(11) NOT NULL,
+  `to` int (11) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8;
+
+# Заполняем данными Пользователей и Фото
+INSERT INTO `users` (`name`) VALUES ('Илья Петров'), ('Тарас Голомозый'), ('Юлия Иванова'), ('Ольга Никитина'), ('Андрей Пирожков');
+INSERT INTO `photos` (`name`) VALUES ('зима'), ('весна'), ('лето'), ('осень');
+
+# Создание связей
+ALTER TABLE `user_likes` ADD INDEX(`to`);
+ALTER TABLE `user_likes` ADD INDEX(`from`);
+ALTER TABLE `user_likes` ADD FOREIGN KEY (`from`) REFERENCES `users`(`id`) ON DELETE RESTRICT ON UPDATE RESTRICT;
+ALTER TABLE `user_likes` ADD FOREIGN KEY (`to`) REFERENCES `users`(`id`) ON DELETE RESTRICT ON UPDATE RESTRICT;
+
+ALTER TABLE `photo_likes` ADD INDEX(`to`);
+ALTER TABLE `photo_likes` ADD INDEX(`from`);
+ALTER TABLE `photo_likes` ADD FOREIGN KEY (`from`) REFERENCES `users`(`id`) ON DELETE RESTRICT ON UPDATE RESTRICT; 
+ALTER TABLE `photo_likes` ADD FOREIGN KEY (`to`) REFERENCES `photos`(`id`) ON DELETE RESTRICT ON UPDATE RESTRICT;
+
+# Добавляем составной уникальный индекс, чтобы лайки не дублировались
+ALTER TABLE `user_likes`ADD UNIQUE `unique_index`(`to`, `from`);
+
+# Получилась структура http://joxi.ru/nAyZLwPtgnxJjr
+# Аналогично при появлении новой сущности мы добавляем таблицу с этими сущностями и таблицу с лайками на эти сущности
+# Связи указывать from - на пользователям to - на id лайкнутой сущности
+
+# Ставим тестовые лайки
+INSERT INTO `user_likes` (`id`, `from`, `to`) VALUES (NULL, '1', '2'), (NULL, '1', '3'), (NULL, '1', '5'), (NULL, '5', '1'), (NULL, '3', '4');
+
+# Делаем запросы
+
+# Лайков получено
+SELECT `users`.`id`, `users`.`name`, COUNT(*) AS `Лайков получено` FROM `users` 
+LEFT JOIN `user_likes` ON `users`.`id` = `user_likes`.`to` GROUP BY `users`.`id`;
+
+# Лайков поставлено
+SELECT `users`.`id`, `users`.`name`, COUNT(*) AS `Лайков поставлено` FROM `users` 
+LEFT JOIN `user_likes` ON `users`.`id` = `user_likes`.`from` GROUP BY `users`.`id`;
+
+# Взаимные лайки
+# Процедура возвращает имена пользователей, с которыми данный пользователь обменялся лайками
+
+DELIMITER $$
+CREATE PROCEDURE double_likes(user_id INT) 
+BEGIN 
+        SELECT `users`.`id`, `users`.`name` FROM `users` 
+        WHERE `users`.`id` IN         
+        (SELECT `user_likes`.`to` FROM `user_likes`
+        WHERE `user_likes`.`from` = user_id  AND `user_likes`.`to` IN 
+        (SELECT `user_likes`.`from` FROM `user_likes` 
+        WHERE `user_likes`.`to` = user_id)) GROUP BY `users`.`id`;
+END; $$
+DELIMITER ;
+
+CALL double_likes(1);
+
+
+
+
+
